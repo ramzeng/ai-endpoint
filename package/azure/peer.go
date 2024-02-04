@@ -35,33 +35,33 @@ type Peer struct {
 	mutex           sync.Mutex
 }
 
-func (b *Peer) getMaskedKey() string {
-	return toolkit.MaskString(b.Key, 0.7)
+func (p *Peer) getMaskedKey() string {
+	return toolkit.MaskString(p.Key, 0.7)
 }
 
-func (b *Peer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	b.ReverseProxy.ServeHTTP(writer, request)
+func (p *Peer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	p.ReverseProxy.ServeHTTP(writer, request)
 }
 
-func (b *Peer) InitializeReverseProxy() {
-	b.ReverseProxy = &httputil.ReverseProxy{
+func (p *Peer) InitializeReverseProxy() {
+	p.ReverseProxy = &httputil.ReverseProxy{
 		Transport:  DefaultTransport,
-		Director:   b.Director(),
+		Director:   p.Director(),
 		BufferPool: toolkit.NewBytesBufferPool(32 * 1024),
 		ModifyResponse: func(response *http.Response) error {
 			if response.StatusCode == http.StatusOK {
-				if b.EffectiveWeight < b.Weight {
-					b.AddEffectiveWeight(1)
+				if p.EffectiveWeight < p.Weight {
+					p.AddEffectiveWeight(1)
 				}
 			}
 
 			return nil
 		},
 		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
-			b.logger.Error(
+			p.logger.Error(
 				"[Azure]: OpenAI proxy request error",
 				zap.String("event", "azure_openai_proxy_request_error"),
-				zap.String("key", b.getMaskedKey()),
+				zap.String("key", p.getMaskedKey()),
 				zap.String("model", request.Header.Get("X-OpenAI-Model")),
 				zap.String("version", request.URL.Query().Get("api-version")),
 				zap.String("host", request.URL.Host),
@@ -80,13 +80,13 @@ func (b *Peer) InitializeReverseProxy() {
 				}
 			}
 
-			b.AddEffectiveWeight(-b.CurrentWeight / 2)
+			p.AddEffectiveWeight(-p.CurrentWeight / 2)
 		},
 	}
 }
 
-func (b *Peer) HasOpenAIModelCapability(model string) bool {
-	for _, deployment := range b.Deployments {
+func (p *Peer) HasOpenAIModelCapability(model string) bool {
+	for _, deployment := range p.Deployments {
 		if deployment.Model == model {
 			return true
 		}
@@ -94,8 +94,8 @@ func (b *Peer) HasOpenAIModelCapability(model string) bool {
 	return false
 }
 
-func (b *Peer) GetDeploymentByModel(model string) (Deployment, bool) {
-	for _, deployment := range b.Deployments {
+func (p *Peer) GetDeploymentByModel(model string) (Deployment, bool) {
+	for _, deployment := range p.Deployments {
 		if deployment.Model == model {
 			return deployment, true
 		}
@@ -104,44 +104,44 @@ func (b *Peer) GetDeploymentByModel(model string) (Deployment, bool) {
 	return Deployment{}, false
 }
 
-func (b *Peer) AddEffectiveWeight(delta int64) {
-	b.mutex.Lock()
+func (p *Peer) AddEffectiveWeight(delta int64) {
+	p.mutex.Lock()
 
-	b.EffectiveWeight += delta
+	p.EffectiveWeight += delta
 
-	if b.EffectiveWeight > b.Weight {
-		b.EffectiveWeight = b.Weight
+	if p.EffectiveWeight > p.Weight {
+		p.EffectiveWeight = p.Weight
 	}
 
-	if b.EffectiveWeight < 1 {
-		b.EffectiveWeight = 1
+	if p.EffectiveWeight < 1 {
+		p.EffectiveWeight = 1
 	}
 
-	b.mutex.Unlock()
+	p.mutex.Unlock()
 }
 
-func (b *Peer) Director() func(request *http.Request) {
+func (p *Peer) Director() func(request *http.Request) {
 	return func(request *http.Request) {
-		request.Header.Set("api-key", b.Key)
+		request.Header.Set("api-key", p.Key)
 		request.Header.Del("Authorization")
 
-		deployment, _ := b.GetDeploymentByModel(request.Header.Get("X-OpenAI-Model"))
+		deployment, _ := p.GetDeploymentByModel(request.Header.Get("X-OpenAI-Model"))
 
 		query := request.URL.Query()
 		query.Add("api-version", deployment.Version)
 
-		request.Host = b.Endpoint.Host
-		request.URL.Host = b.Endpoint.Host
-		request.URL.Scheme = b.Endpoint.Scheme
+		request.Host = p.Endpoint.Host
+		request.URL.Host = p.Endpoint.Host
+		request.URL.Scheme = p.Endpoint.Scheme
 		request.URL.Path = path.Join(fmt.Sprintf("/openai/deployments/%s", deployment.Name), strings.Replace(request.URL.Path, "/v1/", "/", 1))
 
 		request.URL.RawPath = request.URL.EscapedPath()
 		request.URL.RawQuery = query.Encode()
 
-		b.logger.Info(
+		p.logger.Info(
 			"[Azure]: OpenAI proxy request constructed",
 			zap.String("event", "azure_openai_proxy_request_constructed"),
-			zap.String("key", b.getMaskedKey()),
+			zap.String("key", p.getMaskedKey()),
 			zap.String("model", deployment.Model),
 			zap.String("deployment", deployment.Name),
 			zap.String("version", deployment.Version),

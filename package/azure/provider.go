@@ -15,28 +15,28 @@ func Initialize(azureProxyConfig Config, logger *zap.Logger) {
 		}
 	}
 
-	for _, backendConfig := range azureProxyConfig.Backends {
-		for _, deployment := range backendConfig.Deployments {
+	for _, peerConfig := range azureProxyConfig.Peers {
+		for _, deployment := range peerConfig.Deployments {
 			serverPool, ok := serverPools[deployment.Model]
 
 			if !ok {
 				continue
 			}
 
-			endpoint, _ := url.Parse(backendConfig.Endpoint)
+			endpoint, _ := url.Parse(peerConfig.Endpoint)
 
-			backend := &Peer{
-				Key:             backendConfig.Key,
+			peer := &Peer{
+				Key:             peerConfig.Key,
 				Endpoint:        endpoint,
-				Deployments:     backendConfig.Deployments,
-				Weight:          backendConfig.Weight,
-				EffectiveWeight: backendConfig.Weight,
+				Deployments:     peerConfig.Deployments,
+				Weight:          peerConfig.Weight,
+				EffectiveWeight: peerConfig.Weight,
 				logger:          logger,
 			}
 
-			backend.InitializeReverseProxy()
+			peer.InitializeReverseProxy()
 
-			serverPool.AddPeer(backend)
+			serverPool.AddPeer(peer)
 		}
 	}
 }

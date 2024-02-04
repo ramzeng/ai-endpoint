@@ -95,7 +95,7 @@ azure:
       - gpt-3.5-turbo
       - gpt-4
       - gpt-4-32k
-    backends:
+    peers:
       - key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         endpoint: https://xxxxx.openai.azure.com
         weight: 20

@@ -24,22 +24,22 @@ func (s *ServerPool) GetNextPeer() *Peer {
 
 	var totalWeight int64
 
-	selectedBackend := s.peers[0]
+	selectedPeer := s.peers[0]
 
-	for _, b := range s.peers {
-		weight := b.EffectiveWeight
+	for _, p := range s.peers {
+		weight := p.EffectiveWeight
 
 		totalWeight += weight
-		b.CurrentWeight += weight
+		p.CurrentWeight += weight
 
-		if b.CurrentWeight > selectedBackend.CurrentWeight {
-			selectedBackend = b
+		if p.CurrentWeight > selectedPeer.CurrentWeight {
+			selectedPeer = p
 		}
 	}
 
-	selectedBackend.CurrentWeight -= totalWeight
+	selectedPeer.CurrentWeight -= totalWeight
 
-	return selectedBackend
+	return selectedPeer
 }
 
 func SelectPeerByModel(model string) *Peer {

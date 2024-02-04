@@ -41,7 +41,7 @@ func Proxy(c *gin.Context) {
 	if peer == nil {
 		logger.Error(
 			"app",
-			fmt.Sprintf("[Azure]: failed to get %s backend service", request.Model),
+			fmt.Sprintf("[Azure]: failed to get %s peer service", request.Model),
 			zap.String("event", "select_azure_proxy_peer_error"),
 		)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{

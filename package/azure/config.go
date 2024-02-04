@@ -1,11 +1,11 @@
 package azure
 
 type Config struct {
-	Models   []string
-	Backends []BackendConfig
+	Models []string
+	Peers  []PeerConfig
 }
 
-type BackendConfig struct {
+type PeerConfig struct {
 	Key         string
 	Endpoint    string
 	Deployments []Deployment
