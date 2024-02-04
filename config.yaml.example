@@ -1,0 +1,42 @@
+logger:
+  channels:
+    - name: app
+      filename: /var/log/app.log
+      maxSize: 1
+      maxAge: 30
+      maxBackups: 10
+      compress: false
+      level: info
+    - name: request
+      filename: /var/log/request.log
+      maxSize: 1
+      maxAge: 30
+      maxBackups: 10
+      compress: false
+      level: info
+database:
+  addr: root:password@tcp(127.0.0.1:3306)/endpoints?charset=utf8mb4&parseTime=True&loc=Local
+redis:
+  addr: 127.0.0.1:6379
+  password: ""
+  db: 0
+azure:
+  openai:
+    models:
+      - gpt-3.5-turbo
+      - gpt-4
+      - gpt-4-32k
+    backends:
+      - key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        endpoint: https://xxxxx.openai.azure.com
+        weight: 20
+        deployments:
+          - name: gpt-35-turbo
+            model: gpt-3.5-turbo
+            version: 2023-03-15-preview
+          - name: gpt-4
+            model: gpt-4
+            version: 2023-03-15-preview
+          - name: gpt-4-32k
+            model: gpt-4-32k
+            version: 2023-03-15-preview
