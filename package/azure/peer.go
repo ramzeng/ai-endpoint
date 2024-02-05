@@ -35,6 +35,26 @@ type Peer struct {
 	mutex           sync.Mutex
 }
 
+func (p *Peer) GetEffectiveWeight() int64 {
+	return p.EffectiveWeight
+}
+
+func (p *Peer) GetCurrentWeight() int64 {
+	return p.CurrentWeight
+}
+
+func (p *Peer) SetCurrentWeight(currentWeight int64) {
+	p.CurrentWeight = currentWeight
+}
+
+func (p *Peer) IncreaseCurrentWeight(increase int64) {
+	p.CurrentWeight += increase
+}
+
+func (p *Peer) DecreaseCurrentWeight(decrease int64) {
+	p.CurrentWeight -= decrease
+}
+
 func (p *Peer) getMaskedKey() string {
 	return toolkit.MaskString(p.Key, 0.7)
 }
