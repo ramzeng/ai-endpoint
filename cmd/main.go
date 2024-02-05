@@ -1,13 +1,12 @@
 package main
 
 import (
-	"os"
-
 	"github.com/gin-gonic/gin"
 	"github.com/ramzeng/ai-endpoint/internal/azure"
 	"github.com/ramzeng/ai-endpoint/internal/core"
 	"github.com/ramzeng/ai-endpoint/internal/middleware"
 	"github.com/ramzeng/ai-endpoint/package/config"
+	"os"
 )
 
 func main() {

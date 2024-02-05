@@ -6,27 +6,26 @@ import (
 
 func NewBalancer() *Balancer {
 	return &Balancer{
-		peers: make([]Peer, 0),
+		peers: make([]PeerInterface, 0),
 	}
 }
 
 type Balancer struct {
-	peers []Peer
+	peers []PeerInterface
 	mutex sync.Mutex
 }
 
-func (s *Balancer) AddPeer(peer Peer) {
+func (s *Balancer) AddPeer(peer PeerInterface) {
 	s.peers = append(s.peers, peer)
 }
 
-func (s *Balancer) GetNextPeer() Peer {
+func (s *Balancer) GetNextPeer() PeerInterface {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if len(s.peers) < 1 {
 		return nil
 	}
-
-	s.mutex.Lock()
-
-	defer s.mutex.Unlock()
 
 	var totalWeight int64
 

@@ -15,7 +15,7 @@ func Initialize(azureProxyConfig Config, logger *zap.Logger) {
 
 		for _, peerConfig := range azureProxyConfig.Peers {
 			for _, deployment := range peerConfig.Deployments {
-				balancer, ok := balancers[deployment.Model]
+				b, ok := balancers[deployment.Model]
 
 				if !ok {
 					continue
@@ -24,17 +24,18 @@ func Initialize(azureProxyConfig Config, logger *zap.Logger) {
 				endpoint, _ := url.Parse(peerConfig.Endpoint)
 
 				peer := &Peer{
-					Key:             peerConfig.Key,
-					Endpoint:        endpoint,
-					Deployments:     peerConfig.Deployments,
-					Weight:          peerConfig.Weight,
-					EffectiveWeight: peerConfig.Weight,
-					logger:          logger,
+					Key:         peerConfig.Key,
+					Endpoint:    endpoint,
+					Deployments: peerConfig.Deployments,
+					logger:      logger,
 				}
+
+				peer.Weight = peerConfig.Weight
+				peer.EffectiveWeight = peerConfig.Weight
 
 				peer.InitializeReverseProxy()
 
-				balancer.AddPeer(peer)
+				b.AddPeer(peer)
 			}
 		}
 	}

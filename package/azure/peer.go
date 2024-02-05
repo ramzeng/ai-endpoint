@@ -4,55 +4,32 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ramzeng/ai-endpoint/package/balancer"
+	error2 "github.com/ramzeng/ai-endpoint/package/error"
+	"github.com/ramzeng/ai-endpoint/package/toolkit"
+	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"path"
 	"strings"
-	"sync"
-
-	error2 "github.com/ramzeng/ai-endpoint/package/error"
-	"github.com/ramzeng/ai-endpoint/package/toolkit"
-	"go.uber.org/zap"
 )
 
 type Deployment struct {
-	Name    string
-	Model   string
-	Version string
+	Name       string
+	Model      string
+	Version    string
+	IsOriginal bool // is openai original model
 }
 
 type Peer struct {
-	Key             string
-	Endpoint        *url.URL
-	Deployments     []Deployment
-	ReverseProxy    *httputil.ReverseProxy
-	Weight          int64
-	CurrentWeight   int64
-	EffectiveWeight int64
-	logger          *zap.Logger
-	mutex           sync.Mutex
-}
-
-func (p *Peer) GetEffectiveWeight() int64 {
-	return p.EffectiveWeight
-}
-
-func (p *Peer) GetCurrentWeight() int64 {
-	return p.CurrentWeight
-}
-
-func (p *Peer) SetCurrentWeight(currentWeight int64) {
-	p.CurrentWeight = currentWeight
-}
-
-func (p *Peer) IncreaseCurrentWeight(increase int64) {
-	p.CurrentWeight += increase
-}
-
-func (p *Peer) DecreaseCurrentWeight(decrease int64) {
-	p.CurrentWeight -= decrease
+	balancer.Peer
+	Key          string
+	Endpoint     *url.URL
+	Deployments  []Deployment
+	ReverseProxy *httputil.ReverseProxy
+	logger       *zap.Logger
 }
 
 func (p *Peer) getMaskedKey() string {
@@ -71,7 +48,7 @@ func (p *Peer) InitializeReverseProxy() {
 		ModifyResponse: func(response *http.Response) error {
 			if response.StatusCode == http.StatusOK {
 				if p.EffectiveWeight < p.Weight {
-					p.AddEffectiveWeight(1)
+					p.IncreaseEffectiveWeight(1)
 				}
 			}
 
@@ -94,13 +71,14 @@ func (p *Peer) InitializeReverseProxy() {
 				writer.WriteHeader(error2.ClientClosedRequest)
 			}
 
-			if val, ok := err.(net.Error); ok {
+			var val net.Error
+			if errors.As(err, &val) {
 				if val.Timeout() {
 					writer.WriteHeader(http.StatusGatewayTimeout)
 				}
 			}
 
-			p.AddEffectiveWeight(-p.CurrentWeight / 2)
+			p.IncreaseEffectiveWeight(-p.CurrentWeight / 2)
 		},
 	}
 }
@@ -124,36 +102,25 @@ func (p *Peer) GetDeploymentByModel(model string) (Deployment, bool) {
 	return Deployment{}, false
 }
 
-func (p *Peer) AddEffectiveWeight(delta int64) {
-	p.mutex.Lock()
-
-	p.EffectiveWeight += delta
-
-	if p.EffectiveWeight > p.Weight {
-		p.EffectiveWeight = p.Weight
-	}
-
-	if p.EffectiveWeight < 1 {
-		p.EffectiveWeight = 1
-	}
-
-	p.mutex.Unlock()
-}
-
 func (p *Peer) Director() func(request *http.Request) {
 	return func(request *http.Request) {
-		request.Header.Set("api-key", p.Key)
-		request.Header.Del("Authorization")
-
-		deployment, _ := p.GetDeploymentByModel(request.Header.Get("X-OpenAI-Model"))
-
-		query := request.URL.Query()
-		query.Add("api-version", deployment.Version)
-
 		request.Host = p.Endpoint.Host
 		request.URL.Host = p.Endpoint.Host
 		request.URL.Scheme = p.Endpoint.Scheme
-		request.URL.Path = path.Join(fmt.Sprintf("/openai/deployments/%s", deployment.Name), strings.Replace(request.URL.Path, "/v1/", "/", 1))
+
+		query := request.URL.Query()
+		deployment, _ := p.GetDeploymentByModel(request.Header.Get("X-OpenAI-Model"))
+
+		if deployment.IsOriginal {
+			// it's openai original model
+			request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Key))
+		} else {
+			// it's azure deployed model
+			request.Header.Set("api-key", p.Key)
+			request.Header.Del("Authorization")
+			query.Add("api-version", deployment.Version)
+			request.URL.Path = path.Join(fmt.Sprintf("/openai/deployments/%s", deployment.Name), strings.Replace(request.URL.Path, "/v1/", "/", 1))
+		}
 
 		request.URL.RawPath = request.URL.EscapedPath()
 		request.URL.RawQuery = query.Encode()
@@ -162,6 +129,7 @@ func (p *Peer) Director() func(request *http.Request) {
 			"[Azure]: OpenAI proxy request constructed",
 			zap.String("event", "azure_openai_proxy_request_constructed"),
 			zap.String("key", p.getMaskedKey()),
+			zap.Bool("is_original", deployment.IsOriginal),
 			zap.String("model", deployment.Model),
 			zap.String("deployment", deployment.Name),
 			zap.String("version", deployment.Version),
