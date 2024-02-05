@@ -97,6 +97,17 @@ azure:
       - gpt-4-32k
     peers:
       - key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        endpoint: https://api.openai.com
+        weight: 20
+        deployments:
+          - model: gpt-3.5-turbo
+            # if you want to use the original openai model, set isOpenAI to true
+            isOpenAI: true
+          - model: gpt-4
+            isOpenAI: true
+          - model: gpt-4-32k
+            isOpenAI: true
+      - key: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         endpoint: https://xxxxx.openai.azure.com
         weight: 20
         deployments:
@@ -109,4 +120,5 @@ azure:
           - name: gpt-4-32k
             model: gpt-4-32k
             version: 2023-03-15-preview
+
 ```
