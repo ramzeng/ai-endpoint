@@ -16,7 +16,7 @@ ENV ENDPOINT_CONFIG_PATH=/app/config.yaml
 
 WORKDIR /app
 
-COPY --from=builder /src/server /src/config/config.yaml ./
+COPY --from=builder /src/server /src/config.yaml ./
 
 EXPOSE 8080
 
