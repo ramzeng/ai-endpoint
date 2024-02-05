@@ -4,23 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ramzeng/ai-endpoint/package/balancer"
-	error2 "github.com/ramzeng/ai-endpoint/package/error"
-	"github.com/ramzeng/ai-endpoint/package/toolkit"
-	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"path"
 	"strings"
+
+	"github.com/ramzeng/ai-endpoint/package/balancer"
+	error2 "github.com/ramzeng/ai-endpoint/package/error"
+	"github.com/ramzeng/ai-endpoint/package/toolkit"
+	"go.uber.org/zap"
 )
 
 type Deployment struct {
-	Name       string
-	Model      string
-	Version    string
-	IsOriginal bool // is openai original model
+	Name     string
+	Model    string
+	Version  string
+	IsOpenAI bool
 }
 
 type Peer struct {
@@ -111,7 +112,7 @@ func (p *Peer) Director() func(request *http.Request) {
 		query := request.URL.Query()
 		deployment, _ := p.GetDeploymentByModel(request.Header.Get("X-OpenAI-Model"))
 
-		if deployment.IsOriginal {
+		if deployment.IsOpenAI {
 			// it's openai original model
 			request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Key))
 		} else {
@@ -129,7 +130,7 @@ func (p *Peer) Director() func(request *http.Request) {
 			"[Azure]: OpenAI proxy request constructed",
 			zap.String("event", "azure_openai_proxy_request_constructed"),
 			zap.String("key", p.getMaskedKey()),
-			zap.Bool("is_original", deployment.IsOriginal),
+			zap.Bool("is_openai", deployment.IsOpenAI),
 			zap.String("model", deployment.Model),
 			zap.String("deployment", deployment.Name),
 			zap.String("version", deployment.Version),
